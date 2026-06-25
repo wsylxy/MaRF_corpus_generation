@@ -15,14 +15,8 @@ target_len = 80 # number upperbound of each question's (q, a) pairs
 longest_len = 256
 
 clusters = json.load(open(file=filepath, encoding='utf-8'))
-# test_set_clusters = json.load(open(file=test_set_file, encoding='utf-8'))
-# clusters.update(test_set_clusters)
-# print(test_set_clusters)
-# for id in test_set_clusters.keys():
-#     print(id)
-# sys.exit()
 tags_dict = json.load(open(file=tag_path, encoding='utf-8'))
-num_neg = 3 #numbers of negative sample in each row
+num_neg = 1 #numbers of negative sample in each row
 
     
 def generate_pairs(cluster:list, target_len:int, question_tags:str):
@@ -49,47 +43,35 @@ def write_trainset(clusters, num_neg, outfile, target_len):
         question_tags = question_cluster["tags"]
 
         pos = generate_pairs(cluster=question_cluster, target_len=target_len, question_tags=question_tags)  # generate (query, positive) pairs
-        if not question_tags == 'testset':
-            ref = tags_dict[question_tags]
-            # print("ref before remove", ref)
-            ref.remove(question_id)
-            # print("ref after remove", ref)
-            count_same_tag_answer = 0
-            same_tag_answers = []
-            # print(ref)
-            for id in ref:  # count the number of answer formulas under the same tag
-                id = str(id)
-                count_same_tag_answer += len(clusters[id]["answer_posts"])
-                same_tag_answers.extend(clusters[id]["answer_posts"])
-            # print("count_same_tag_answer", count_same_tag_answer)
-            # print("same_tag_answer:", len(same_tag_answer))
-            if count_same_tag_answer > num_neg*len(pos):    # find negatives from answers with the same tag
-                neg_samples = random.sample(same_tag_answers, k=num_neg*len(pos))
-            else:
-                rest_need = num_neg*len(pos)-count_same_tag_answer
-                # print("rest_need:", rest_need)
-                while True:
-                    rest_neg_cluster_ids = random.sample(ids_all, rest_need)
-                    if question_id not in rest_neg_cluster_ids:
-                        break
-                neg_samples = same_tag_answers
-                # print("neg_samples before", len(neg_samples))
-                for neg_id in rest_neg_cluster_ids: # for answers under other tags, sample one
-                    neg_sample = random.sample(clusters[neg_id]["answer_posts"], k=1)[0]
-                    neg_samples.append(neg_sample)
-                # print("neg_samples before", len(neg_samples))
-        elif question_tags == 'testset':
-            ref = ids_all
-            ref.remove(question_cluster['avoid_q_ids'])
-            ref = [x for x in ref if not x.startswith("A.")]
+        
+        ref = tags_dict[question_tags]
+        # print("ref before remove", ref)
+        ref.remove(question_id)
+        # print("ref after remove", ref)
+        count_same_tag_answer = 0
+        same_tag_answers = []
+        # print(ref)
+        for id in ref:  # count the number of answer formulas under the same tag
+            id = str(id)
+            count_same_tag_answer += len(clusters[id]["answer_posts"])
+            same_tag_answers.extend(clusters[id]["answer_posts"])
+        # print("count_same_tag_answer", count_same_tag_answer)
+        # print("same_tag_answer:", len(same_tag_answer))
+        if count_same_tag_answer > num_neg*len(pos):    # find negatives from answers with the same tag
+            neg_samples = random.sample(same_tag_answers, k=num_neg*len(pos))
+        else:
+            rest_need = num_neg*len(pos)-count_same_tag_answer
+            # print("rest_need:", rest_need)
             while True:
-                ids = random.sample(ref, k=num_neg*len(pos))
-                if question_id not in ids:
+                rest_neg_cluster_ids = random.sample(ids_all, rest_need)
+                if question_id not in rest_neg_cluster_ids:
                     break
-            neg_samples = []
-            for neg_id in ids:
+            neg_samples = same_tag_answers
+            # print("neg_samples before", len(neg_samples))
+            for neg_id in rest_neg_cluster_ids: # for answers under other tags, sample one
                 neg_sample = random.sample(clusters[neg_id]["answer_posts"], k=1)[0]
                 neg_samples.append(neg_sample)
+            # print("neg_samples before", len(neg_samples))
         random.shuffle(neg_samples)
         out = []
         id_neg = 0
